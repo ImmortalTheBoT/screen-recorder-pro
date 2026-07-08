@@ -1,6 +1,6 @@
-# ❤️ Support Triple Scraper Ultimate
+# ❤️ Support 
 
-I built this scraper to turn messy web data into clean, usable formats—and I decided to open-source it so the community could benefit from it too! 
+I built this recorder so that PCs which do not support recording or MP4 outputs can use this clean, usable formats—and I decided to open-source it so the community could benefit from it too! 
 
 I don't charge a subscription for this version, so if you find it useful, a small donation goes a long way. It helps cover development time, keeps the code updated against new browser changes, and honestly, just makes my day. 
 
