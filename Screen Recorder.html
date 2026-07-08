@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Recorder Pro</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --accent-blue: #3b82f6;
+            --accent-blue-hover: #2563eb;
+            --accent-red: #ef4444;
+            --accent-red-hover: #dc2626;
+            --disabled: #475569;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .recorder-container {
+            background-color: var(--panel-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 550px;
+            text-align: center;
+            z-index: 10;
+            position: relative;
+        }
+
+        h1 { margin-top: 0; font-size: 1.8rem; }
+        
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 1.5rem 0;
+            background: rgba(0,0,0,0.2);
+            padding: 1rem;
+            border-radius: 12px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .toggle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        select {
+            background-color: #334155;
+            color: white;
+            border: 1px solid #475569;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-blue); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        button:disabled {
+            background-color: var(--disabled) !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        #startBtn { background-color: var(--accent-blue); }
+        #startBtn:hover:not(:disabled) { background-color: var(--accent-blue-hover); }
+        #stopBtn { background-color: var(--accent-red); }
+        #stopBtn:hover:not(:disabled) { background-color: var(--accent-red-hover); }
+        #resetBtn, #downloadBtn { background-color: #10b981; }
+        #resetBtn:hover:not(:disabled), #downloadBtn:hover:not(:disabled) { background-color: #059669; }
+
+        .preview-container { margin-top: 1.5rem; }
+        #previewVideo {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+            display: none;
+        }
+
+        .status { margin-top: 10px; font-size: 0.9rem; color: #94a3b8; }
+
+        .timer {
+            font-size: 2.5rem;
+            font-family: monospace;
+            font-weight: bold;
+            margin: 15px 0;
+            color: var(--text-main);
+            display: none;
+        }
+        .timer.recording { color: var(--accent-red); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        #webcamPreview {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--accent-blue);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 9999;
+            background: #000;
+            cursor: move;
+        }
+
+        .click-ripple {
+            position: fixed;
+            border-radius: 50%;
+            border: 4px solid rgba(255, 235, 59, 0.8);
+            background-color: rgba(255, 235, 59, 0.3);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9998;
+            animation: ripple-animation 0.5s ease-out forwards;
+        }
+        @keyframes ripple-animation {
+            0% { width: 0px; height: 0px; opacity: 1; }
+            100% { width: 60px; height: 60px; opacity: 0; }
+        }
+
+        #keystrokeDisplay {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            font-family: monospace;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 9998;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* --- NEW: Countdown Overlay CSS --- */
+        #countdownOverlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            color: white;
+            font-size: 8rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            display: none;
+            backdrop-filter: blur(5px);
+        }
+        .countdown-animate {
+            animation: popIn 1s ease-in-out infinite;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            30% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="countdownOverlay"><span id="countdownNumber">3</span></div>
+
+    <div id="keystrokeDisplay"></div>
+    <video id="webcamPreview" autoplay muted playsinline></video>
+
+    <div class="recorder-container">
+        <h1>🎙️ Screen Recorder Pro</h1>
+        
+        <div class="controls">
+            <div class="toggle-container">
+                <label class="switch">
+                    <input type="checkbox" id="micToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>Microphone</span>
+            </div>
+            
+            <div class="toggle-container">
+                <label class="switch">
+                    <input type="checkbox" id="webcamToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>Webcam</span>
+            </div>
+
+            <div class="toggle-container">
+                <select id="resolutionSelect">
+                    <option value="default">Auto (Screen Match)</option>
+                    <option value="1080p">1080p (Full HD)</option>
+                    <option value="720p">720p (HD)</option>
+                </select>
+                <span>Quality</span>
+            </div>
+        </div>
+
+        <div class="timer" id="timerDisplay">00:00</div>
+
+        <div class="buttons">
+            <button id="startBtn">Start Recording</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="downloadBtn" style="display:none;">Save Video</button>
+            <button id="resetBtn" style="display:none;">Reset</button>
+        </div>
+
+        <div class="status" id="statusText">Ready to record.</div>
+
+        <div class="preview-container">
+            <video id="previewVideo" controls></video>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let screenStream = null;
+        let micStream = null;
+        let webcamStream = null;
+        let currentFileExt = 'webm';
+
+        let timerInterval;
+        let startTime;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const micToggle = document.getElementById('micToggle');
+        const webcamToggle = document.getElementById('webcamToggle');
+        const resolutionSelect = document.getElementById('resolutionSelect');
+        const statusText = document.getElementById('statusText');
+        const previewVideo = document.getElementById('previewVideo');
+        const webcamVideo = document.getElementById('webcamPreview');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const keystrokeDisplay = document.getElementById('keystrokeDisplay');
+        
+        // Countdown Elements
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        const countdownNumber = document.getElementById('countdownNumber');
+
+        // Mouse Click Ripple Effect
+        document.addEventListener('mousedown', (e) => {
+            const ripple = document.createElement('div');
+            ripple.className = 'click-ripple';
+            ripple.style.left = `${e.clientX}px`;
+            ripple.style.top = `${e.clientY}px`;
+            document.body.appendChild(ripple);
+            setTimeout(() => { ripple.remove(); }, 500);
+        });
+
+        // Keystroke Display Logic
+        let keyTimeout;
+        document.addEventListener('keydown', (e) => {
+            let keyName = e.key;
+            if (keyName === " ") keyName = "Space";
+            if (e.ctrlKey && keyName !== "Control") keyName = "Ctrl + " + keyName.toUpperCase();
+            if (e.shiftKey && keyName !== "Shift" && keyName.length === 1) keyName = "Shift + " + keyName.toUpperCase();
+            
+            keystrokeDisplay.innerText = keyName;
+            keystrokeDisplay.style.opacity = '1';
+            
+            clearTimeout(keyTimeout);
+            keyTimeout = setTimeout(() => {
+                keystrokeDisplay.style.opacity = '0';
+            }, 1500); 
+        });
+
+        function updateTimer() {
+            const now = Date.now();
+            const diff = Math.floor((now - startTime) / 1000);
+            const minutes = String(Math.floor(diff / 60)).padStart(2, '0');
+            const seconds = String(diff % 60).padStart(2, '0');
+            timerDisplay.innerText = `${minutes}:${seconds}`;
+        }
+
+        webcamToggle.addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                try {
+                    webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    webcamVideo.srcObject = webcamStream;
+                    webcamVideo.style.display = 'block';
+                } catch (err) {
+                    alert("Webcam access denied or unavailable.");
+                    e.target.checked = false;
+                }
+            } else {
+                if (webcamStream) webcamStream.getTracks().forEach(track => track.stop());
+                webcamVideo.style.display = 'none';
+                webcamVideo.srcObject = null;
+            }
+        });
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                startBtn.disabled = true; // Prevent double clicking
+                recordedChunks = [];
+                
+                let videoConstraints = { displaySurface: "browser" };
+                const selectedRes = resolutionSelect.value;
+                if (selectedRes === '1080p') {
+                    videoConstraints.width = { ideal: 1920 };
+                    videoConstraints.height = { ideal: 1080 };
+                } else if (selectedRes === '720p') {
+                    videoConstraints.width = { ideal: 1280 };
+                    videoConstraints.height = { ideal: 720 };
+                }
+                
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: videoConstraints,
+                    audio: true
+                });
+
+                let finalStream = new MediaStream([screenStream.getVideoTracks()[0]]);
+
+                if (screenStream.getAudioTracks().length > 0) {
+                    finalStream.addTrack(screenStream.getAudioTracks()[0]);
+                }
+
+                if (micToggle.checked) {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    finalStream.addTrack(micStream.getAudioTracks()[0]);
+                }
+
+                let options = { mimeType: 'video/webm' };
+                currentFileExt = 'webm';
+                
+                const possibleTypes = [
+                    'video/mp4; codecs="avc1.424028"',
+                    'video/mp4',
+                    'video/webm; codecs=vp9',
+                    'video/webm; codecs=vp8',
+                    'video/webm'
+                ];
+
+                for (let type of possibleTypes) {
+                    if (MediaRecorder.isTypeSupported(type)) {
+                        options = { mimeType: type };
+                        currentFileExt = type.includes('mp4') ? 'mp4' : 'webm';
+                        break;
+                    }
+                }
+
+                try {
+                    mediaRecorder = new MediaRecorder(finalStream, options);
+                } catch (e) {
+                    mediaRecorder = new MediaRecorder(finalStream); 
+                    currentFileExt = 'webm';
+                }
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    previewVideo.src = url;
+                    previewVideo.style.display = 'block';
+                    
+                    downloadBtn.style.display = 'inline-block';
+                    downloadBtn.innerText = `Save ${currentFileExt.toUpperCase()}`;
+                    resetBtn.style.display = 'inline-block';
+                    
+                    downloadBtn.onclick = () => {
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = `recording_${new Date().getTime()}.${currentFileExt}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    };
+
+                    stopAllStreams();
+                };
+
+                screenStream.getVideoTracks()[0].onended = () => {
+                    if(mediaRecorder.state === "recording") stopRecording();
+                };
+
+                // --- NEW: Countdown Logic Before Starting ---
+                let count = 3;
+                countdownOverlay.style.display = 'flex';
+                countdownNumber.innerText = count;
+                countdownNumber.classList.add('countdown-animate');
+                statusText.innerText = `Starting in ${count}...`;
+
+                const countdownInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countdownNumber.innerText = count;
+                        statusText.innerText = `Starting in ${count}...`;
+                    } else {
+                        // Stop countdown
+                        clearInterval(countdownInterval);
+                        countdownOverlay.style.display = 'none';
+                        countdownNumber.classList.remove('countdown-animate');
+                        
+                        // Check if user cancelled sharing during the countdown
+                        if(screenStream.getVideoTracks()[0].readyState === "ended") {
+                           statusText.innerText = "Recording cancelled.";
+                           startBtn.disabled = false;
+                           return;
+                        }
+
+                        // ACTUALLY Start Recording
+                        mediaRecorder.start();
+                        
+                        startTime = Date.now();
+                        timerDisplay.innerText = "00:00";
+                        timerDisplay.style.display = "block";
+                        timerDisplay.classList.add("recording");
+                        timerInterval = setInterval(updateTimer, 1000);
+
+                        stopBtn.disabled = false;
+                        micToggle.disabled = true; 
+                        resolutionSelect.disabled = true;
+                        previewVideo.style.display = 'none';
+                        downloadBtn.style.display = 'none';
+                        resetBtn.style.display = 'none';
+                        statusText.innerText = `🔴 Recording in progress... (${currentFileExt.toUpperCase()})`;
+                    }
+                }, 1000);
+
+            } catch (err) {
+                console.error("Error starting recording:", err);
+                statusText.innerText = "❌ Error: " + err.message;
+                startBtn.disabled = false;
+            }
+        });
+
+        const stopRecording = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                clearInterval(timerInterval);
+                timerDisplay.classList.remove("recording");
+
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                micToggle.disabled = false;
+                resolutionSelect.disabled = false;
+                statusText.innerText = `✅ Recording complete. Saved as ${currentFileExt.toUpperCase()}.`;
+            }
+        }
+        stopBtn.addEventListener('click', stopRecording);
+
+        resetBtn.addEventListener('click', () => {
+            recordedChunks = [];
+            previewVideo.src = "";
+            previewVideo.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            resetBtn.style.display = 'none';
+            timerDisplay.style.display = 'none';
+            timerDisplay.innerText = "00:00";
+            statusText.innerText = "Ready to record.";
+        });
+
+        function stopAllStreams() {
+            if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+            if (micStream) micStream.getTracks().forEach(t => t.stop());
+        }
+
+        // Drag Logic for Webcam
+        let isDragging = false;
+        let currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+
+        webcamVideo.addEventListener("mousedown", dragStart);
+        document.addEventListener("mouseup", dragEnd);
+        document.addEventListener("mousemove", drag);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+            if (e.target === webcamVideo) isDragging = true;
+        }
+        function dragEnd(e) { isDragging = false; }
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+                xOffset = currentX;
+                yOffset = currentY;
+                webcamVideo.style.transform = `translate(${currentX}px, ${currentY}px)`;
+            }
+        }
+    </script>
+</body>
+</html>
